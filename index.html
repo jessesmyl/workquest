@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorkQuest — Time, XP & Revenue Tracker</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c232c; --border:#2d3540;
+    --text:#e6edf3; --muted:#8b98a5; --accent:#7c5cff; --accent2:#9d7bff;
+    --gold:#ffce4d; --green:#3fb950; --red:#f8514a; --blue:#58a6ff;
+    --h0:#1b2129; --h1:#0e4429; --h2:#006d32; --h3:#26a641; --h4:#39d353; --hpeak:#ffce4d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.45;padding:24px;max-width:1180px;margin:0 auto}
+  h1{font-size:26px;letter-spacing:.5px}
+  h2{font-size:16px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:14px;font-weight:600}
+  .sub{color:var(--muted);font-size:13px}
+  .grid{display:grid;gap:18px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px}
+  .row3{display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+  @media(max-width:880px){.row3{grid-template-columns:1fr}}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-weight:600;transition:.15s;color:#fff}
+  button:active{transform:translateY(1px)}
+  .btn{background:var(--accent);padding:10px 16px;font-size:14px}
+  .btn:hover{background:var(--accent2)}
+  .btn-ghost{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 13px;font-size:13px}
+  .btn-ghost:hover{border-color:var(--accent)}
+  .btn-danger{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 10px;font-size:12px}
+  .btn-danger:hover{color:var(--red);border-color:var(--red)}
+  input,select{font-family:inherit;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:10px 12px;font-size:14px;outline:none;width:100%}
+  input:focus,select:focus{border-color:var(--accent)}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:22px}
+  .levelcard{display:flex;align-items:center;gap:16px}
+  .badge{width:64px;height:64px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;
+    background:radial-gradient(circle at 30% 30%,var(--accent2),var(--accent));box-shadow:0 0 22px rgba(124,92,255,.45);flex-shrink:0}
+  .badge .lv{font-size:11px;color:#d9ccff;letter-spacing:1px;margin-top:-2px}
+  .badge .num{font-size:24px;line-height:1}
+  .rankname{font-size:20px;font-weight:700}
+  .xpbar-wrap{width:240px;max-width:46vw}
+  .xpbar{height:9px;background:var(--panel2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+  .xpbar>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:6px;transition:width .4s}
+  .right-head{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .sync-chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;background:var(--panel2);border:1px solid var(--border);border-radius:20px;padding:6px 12px;cursor:pointer}
+  .sync-chip:hover{border-color:var(--accent)}
+
+  .clock-time{font-size:46px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:1px}
+  .clock-time.live{color:var(--green)}
+  .stat-row{display:flex;gap:26px;margin-top:6px;flex-wrap:wrap}
+  .stat .v{font-size:20px;font-weight:700}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .clock-btns{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);margin-right:7px}
+  .dot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.4s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+
+  .task-add{display:grid;grid-template-columns:1fr auto auto;gap:9px;margin-bottom:16px}
+  @media(max-width:520px){.task-add{grid-template-columns:1fr}}
+  .task{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:9px;background:var(--panel2)}
+  .task.done{opacity:.55}
+  .task.done .ttext{text-decoration:line-through}
+  .ttext{flex:1;font-size:14px}
+  .check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+  .check.on{background:var(--green);border-color:var(--green)}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+  .p-easy{background:rgba(63,185,80,.18);color:#56d364}
+  .p-medium{background:rgba(88,166,255,.18);color:#79c0ff}
+  .p-hard{background:rgba(248,81,74,.18);color:#ff7b72}
+  .p-epic{background:rgba(255,206,77,.2);color:#ffce4d}
+  .xptag{font-size:12px;color:var(--gold);font-weight:700;min-width:46px;text-align:right}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px 0;font-style:italic}
+
+  .rev-amount{font-size:38px;font-weight:800;color:var(--green)}
+  .rev-goal-line{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  .rev-bar{height:12px;background:var(--panel2);border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+  .rev-bar>div{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .4s}
+  .rev-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  .rev-inputs label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px}
+
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  .cal-nav{display:flex;gap:8px;align-items:center}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal-dow{font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding-bottom:4px}
+  .cell{aspect-ratio:1;border-radius:8px;background:var(--h0);border:1px solid var(--border);position:relative;cursor:pointer;transition:.12s;display:flex;flex-direction:column;padding:6px;overflow:hidden}
+  .cell:hover{outline:2px solid var(--accent);outline-offset:1px}
+  .cell.blank{background:transparent;border:none;cursor:default}
+  .cell.today{box-shadow:0 0 0 2px var(--gold) inset}
+  .cell .d{font-size:12px;font-weight:700}
+  .cell .meta{margin-top:auto;font-size:9px;line-height:1.3;opacity:.85}
+  .cell.dark .d,.cell.dark .meta{color:#0d1117}
+  .legend{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-top:16px;flex-wrap:wrap}
+  .legend .sw{width:15px;height:15px;border-radius:4px;border:1px solid var(--border)}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:24px}
+  .modal h3{font-size:20px;margin-bottom:4px}
+  .modal-stats{display:flex;gap:24px;margin:16px 0;flex-wrap:wrap}
+  .ms .v{font-size:22px;font-weight:800}
+  .ms .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .close-x{float:right;background:var(--panel2);border:1px solid var(--border);color:var(--muted);width:34px;height:34px;border-radius:8px;font-size:18px}
+  .day-task{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
+  .footer{display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--accent);color:#fff;padding:12px 22px;border-radius:30px;font-weight:600;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);transition:.35s;z-index:60;opacity:0}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .field{margin-bottom:14px}
+  .field label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  .note{font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:11px;margin-top:6px}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="levelcard">
+    <div class="badge"><span class="lv">LVL</span><span class="num" id="lvlNum">1</span></div>
+    <div>
+      <div class="rankname" id="rankName">Novice</div>
+      <div class="sub" id="totalXpLine">0 total XP</div>
+      <div class="xpbar-wrap" style="margin-top:7px">
+        <div class="xpbar"><div id="xpFill" style="width:0%"></div></div>
+        <div class="sub" id="xpToNext" style="margin-top:4px">0 / 100 XP to next level</div>
+      </div>
+    </div>
+  </div>
+  <div class="right-head">
+    <h1>⚔️ WorkQuest</h1>
+    <div class="sub" id="todayLabel"></div>
+    <div class="sync-chip" onclick="openSync()"><span class="dot" id="syncDot"></span><span id="syncLabel">Not synced</span></div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <div class="row3">
+    <div class="panel">
+      <h2>⏱ Time Clock</h2>
+      <div><span class="dot" id="clockDot"></span><span class="sub" id="clockStatus">Clocked out</span></div>
+      <div class="clock-time" id="clockDisplay">00:00:00</div>
+      <div class="stat-row">
+        <div class="stat"><div class="v" id="weekHours">0h 0m</div><div class="l">This Week</div></div>
+        <div class="stat"><div class="v" id="monthHours">0h 0m</div><div class="l">This Month</div></div>
+      </div>
+      <div class="clock-btns">
+        <button class="btn" id="clockBtn" onclick="toggleClock()">Clock In</button>
+        <button class="btn-ghost" onclick="addManualTime()">+ Add time manually</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>💰 Revenue — <span id="revMonthLabel"></span></h2>
+      <div class="rev-amount" id="revAmount">$0</div>
+      <div class="rev-goal-line"><span>Goal progress</span><span id="revPct">0%</span></div>
+      <div class="rev-bar"><div id="revBar" style="width:0%"></div></div>
+      <div class="rev-inputs">
+        <div><label>Revenue this month</label><input type="number" id="revInput" placeholder="0" oninput="saveRevenue()"></div>
+        <div><label>Monthly goal</label><input type="number" id="goalInput" placeholder="0" oninput="saveRevenue()"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>📋 Today's Work List</h2>
+    <div class="task-add">
+      <input type="text" id="taskInput" placeholder="What needs doing today?" onkeydown="if(event.key==='Enter')addTask()">
+      <select id="taskDiff">
+        <option value="easy">Easy · 10 XP</option>
+        <option value="medium" selected>Medium · 25 XP</option>
+        <option value="hard">Hard · 50 XP</option>
+        <option value="epic">Epic · 100 XP</option>
+      </select>
+      <button class="btn" onclick="addTask()">Add Quest</button>
+    </div>
+    <div id="taskList"></div>
+    <div class="sub" id="taskSummary" style="margin-top:12px"></div>
+  </div>
+
+  <div class="panel">
+    <div class="cal-head">
+      <h2 style="margin:0">🔥 Activity Heat Map</h2>
+      <div class="cal-nav">
+        <button class="btn-ghost" onclick="navMonth(-1)">‹</button>
+        <span id="calLabel" style="min-width:150px;text-align:center;font-weight:600"></span>
+        <button class="btn-ghost" onclick="navMonth(1)">›</button>
+        <button class="btn-ghost" onclick="goToday()">Today</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="dowRow"></div>
+    <div class="cal-grid" id="calGrid" style="margin-top:6px"></div>
+    <div class="legend">
+      <span>Weak</span>
+      <span class="sw" style="background:var(--h0)"></span>
+      <span class="sw" style="background:var(--h1)"></span>
+      <span class="sw" style="background:var(--h2)"></span>
+      <span class="sw" style="background:var(--h3)"></span>
+      <span class="sw" style="background:var(--h4)"></span>
+      <span class="sw" style="background:var(--hpeak)"></span>
+      <span>Peak</span>
+      <span style="margin-left:14px">· Click any day to review what you did</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn-ghost" onclick="openSync()">☁ Cloud Sync</button>
+    <button class="btn-ghost" onclick="exportData()">⬇ Backup (.json)</button>
+    <button class="btn-ghost" onclick="document.getElementById('importFile').click()">⬆ Restore</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="btn-danger" onclick="resetAll()">Reset everything</button>
+  </div>
+</div>
+
+<!-- DAY DETAIL MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal()">×</button>
+    <h3 id="modalDate"></h3>
+    <div class="modal-stats">
+      <div class="ms"><div class="v" id="mHours">0h 0m</div><div class="l">Time Worked</div></div>
+      <div class="ms"><div class="v" id="mXp">0</div><div class="l">XP Earned</div></div>
+      <div class="ms"><div class="v" id="mDone">0</div><div class="l">Quests Done</div></div>
+    </div>
+    <h2 style="margin-bottom:10px">Work Log</h2>
+    <div id="modalTasks"></div>
+  </div>
+</div>
+
+<!-- SYNC MODAL -->
+<div class="overlay" id="syncOverlay" onclick="if(event.target===this)closeSync()">
+  <div class="modal">
+    <button class="close-x" onclick="closeSync()">×</button>
+    <h3>☁ Cloud Sync</h3>
+    <p class="sub" style="margin-bottom:16px">Paste your GitHub access token to sync this device with your phone & PC. Your data is stored in a private Gist on your own account.</p>
+    <div class="field">
+      <label>GitHub access token</label>
+      <input type="password" id="tokenInput" placeholder="ghp_...">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="connectSync()">Connect & Sync</button>
+      <button class="btn-ghost" onclick="manualSync()">Sync now</button>
+      <button class="btn-danger" onclick="disconnectSync()">Disconnect this device</button>
+    </div>
+    <div class="note" id="syncInfo">Status: not connected.</div>
+    <div class="note">
+      <strong>No token yet?</strong> On a computer go to GitHub →
+      <a href="https://github.com/settings/tokens/new?scopes=gist&description=WorkQuest" target="_blank">create a token</a>
+      (scope: <em>gist</em>), copy it, and paste it above. You paste it once per device.
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ STATE ============ */
+const KEY = 'workquest_v1';
+const SYNCKEY = 'workquest_sync';
+const XP = {easy:10, medium:25, hard:50, epic:100};
+const RANKS = [
+  [0,'Novice'],[150,'Apprentice'],[400,'Journeyman'],[800,'Adept'],
+  [1400,'Expert'],[2200,'Specialist'],[3200,'Master'],[4500,'Grandmaster'],
+  [6000,'Champion'],[8000,'Legend'],[11000,'Mythic']
+];
+const HEAT = ['var(--h0)','var(--h1)','var(--h2)','var(--h3)','var(--h4)','var(--hpeak)'];
+const GIST_DESC = 'WorkQuest data';
+const GIST_FILE = 'workquest-data.json';
+
+let state = load();
+let sync = loadSync();   // {token, gistId}
+let viewYear, viewMonth;
+let tick = null, pushTimer = null, pulling = false;
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
+  return { days:{}, months:{}, clock:{running:false, startedAt:null} };
+}
+function normalize(s){ if(!s.days)s.days={}; if(!s.months)s.months={}; if(!s.clock)s.clock={running:false,startedAt:null}; return s; }
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); schedulePush(); }
+function loadSync(){ try{ return JSON.parse(localStorage.getItem(SYNCKEY))||null; }catch(e){ return null; } }
+function saveSyncCfg(){ localStorage.setItem(SYNCKEY, JSON.stringify(sync)); }
+
+/* ============ DATE HELPERS ============ */
+function dkey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function mkey(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
+function todayKey(){ return dkey(new Date()); }
+function day(k){ if(!state.days[k]) state.days[k]={seconds:0,tasks:[],updatedAt:0}; return state.days[k]; }
+function touchDay(k){ day(k).updatedAt = Date.now(); }
+function touchMonth(mk){ monthObj(mk).updatedAt = Date.now(); }
+function fmtHM(sec){ const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60); return h+'h '+m+'m'; }
+function fmtHMS(sec){ const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=Math.floor(sec%60); return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':'); }
+function dayXp(k){ const d=state.days[k]; if(!d)return 0; return d.tasks.filter(t=>t.done).reduce((s,t)=>s+t.xp,0); }
+
+/* ============ TIME CLOCK ============ */
+function liveSeconds(){ return state.clock.running ? Math.floor((Date.now()-state.clock.startedAt)/1000) : 0; }
+function toggleClock(){
+  const k = todayKey();
+  if(state.clock.running){
+    day(k).seconds += liveSeconds(); touchDay(k);
+    state.clock.running=false; state.clock.startedAt=null;
+    save(); toast('Clocked out · '+fmtHM(day(k).seconds)+' today');
+  }else{
+    state.clock.running=true; state.clock.startedAt=Date.now();
+    localStorage.setItem(KEY, JSON.stringify(state)); // local only, no push while running
+    toast('Clocked in — go earn it');
+  }
+  renderClock(); renderHeatmap();
+}
+function addManualTime(){
+  const mins = prompt('Add how many minutes to today?');
+  if(mins===null) return;
+  const n = parseInt(mins,10);
+  if(isNaN(n)||n<=0){ toast('Enter a positive number'); return; }
+  const k=todayKey(); day(k).seconds += n*60; touchDay(k);
+  save(); renderClock(); renderHeatmap(); toast('+'+n+' min added to today');
+}
+function renderClock(){
+  const k = todayKey();
+  const base = day(k).seconds, live = liveSeconds();
+  const disp = document.getElementById('clockDisplay');
+  disp.textContent = fmtHMS(base+live);
+  disp.classList.toggle('live', state.clock.running);
+  document.getElementById('clockDot').classList.toggle('on', state.clock.running);
+  document.getElementById('clockStatus').textContent = state.clock.running ? 'Working since '+new Date(state.clock.startedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : 'Clocked out · '+fmtHM(base)+' today';
+  const btn = document.getElementById('clockBtn');
+  btn.textContent = state.clock.running ? 'Clock Out' : 'Clock In';
+  btn.style.background = state.clock.running ? 'var(--red)' : 'var(--accent)';
+  const now = new Date();
+  const monday = new Date(now); const dow=(now.getDay()+6)%7; monday.setDate(now.getDate()-dow); monday.setHours(0,0,0,0);
+  let week=0, month=0;
+  for(const dk in state.days){
+    const dt = new Date(dk+'T00:00:00');
+    if(dt>=monday) week += state.days[dk].seconds;
+    if(dt.getFullYear()===now.getFullYear() && dt.getMonth()===now.getMonth()) month += state.days[dk].seconds;
+  }
+  week+=live; month+=live;
+  document.getElementById('weekHours').textContent = fmtHM(week);
+  document.getElementById('monthHours').textContent = fmtHM(month);
+}
+
+/* ============ TASKS ============ */
+function addTask(){
+  const inp = document.getElementById('taskInput'); const text = inp.value.trim();
+  if(!text) return;
+  const diff = document.getElementById('taskDiff').value; const k=todayKey();
+  day(k).tasks.push({id:Date.now()+''+Math.floor(Math.random()*999), text, difficulty:diff, xp:XP[diff], done:false});
+  touchDay(k); inp.value='';
+  save(); renderTasks(); renderHeatmap();
+}
+function toggleTask(id){
+  const k=todayKey(); const t = day(k).tasks.find(x=>x.id===id); if(!t) return;
+  t.done = !t.done; if(t.done){ t.completedAt = Date.now(); celebrate(t.xp); }
+  touchDay(k); save(); renderTasks(); renderLevel(); renderHeatmap();
+}
+function delTask(id){
+  const k=todayKey(); const d=day(k); d.tasks = d.tasks.filter(x=>x.id!==id); touchDay(k);
+  save(); renderTasks(); renderLevel(); renderHeatmap();
+}
+function renderTasks(){
+  const d = day(todayKey()); const list = document.getElementById('taskList');
+  if(d.tasks.length===0){ list.innerHTML='<div class="empty">No quests yet. Add your first task above.</div>'; document.getElementById('taskSummary').textContent=''; return; }
+  list.innerHTML = d.tasks.map(t=>`
+    <div class="task ${t.done?'done':''}">
+      <button class="check ${t.done?'on':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</button>
+      <span class="ttext">${esc(t.text)}</span>
+      <span class="pill p-${t.difficulty}">${t.difficulty}</span>
+      <span class="xptag">+${t.xp}</span>
+      <button class="btn-danger" style="padding:4px 8px" onclick="delTask('${t.id}')">✕</button>
+    </div>`).join('');
+  const done = d.tasks.filter(t=>t.done).length;
+  document.getElementById('taskSummary').textContent = `${done}/${d.tasks.length} quests complete · ${dayXp(todayKey())} XP earned today`;
+}
+
+/* ============ LEVEL ============ */
+function totalXp(){ let s=0; for(const k in state.days) s+=dayXp(k); return s; }
+function levelInfo(xp){
+  let lvl=1, rank='Novice'; for(const [t,name] of RANKS){ if(xp>=t) rank=name; }
+  let step=100, total=0, curBase=0, need=0;
+  while(true){ if(xp < total+step){ need=total+step; curBase=total; break; } total+=step; lvl++; step+=50; }
+  return {lvl, rank, curBase, next:need};
+}
+function renderLevel(){
+  const xp = totalXp(); const info = levelInfo(xp);
+  document.getElementById('lvlNum').textContent = info.lvl;
+  document.getElementById('rankName').textContent = info.rank;
+  document.getElementById('totalXpLine').textContent = xp.toLocaleString()+' total XP';
+  const into = xp-info.curBase, span = info.next-info.curBase;
+  document.getElementById('xpFill').style.width = Math.min(100,into/span*100)+'%';
+  document.getElementById('xpToNext').textContent = into+' / '+span+' XP to level '+(info.lvl+1);
+}
+
+/* ============ REVENUE ============ */
+function curRevMonth(){ return mkey(viewYear, viewMonth); }
+function monthObj(mk){ if(!state.months[mk]) state.months[mk]={revenue:0,goal:0,updatedAt:0}; return state.months[mk]; }
+function saveRevenue(){
+  const mk = curRevMonth(); const m = monthObj(mk);
+  m.revenue = parseFloat(document.getElementById('revInput').value)||0;
+  m.goal = parseFloat(document.getElementById('goalInput').value)||0;
+  touchMonth(mk); save(); renderRevenue();
+}
+function renderRevenue(){
+  const mk = curRevMonth(); const m = monthObj(mk);
+  document.getElementById('revMonthLabel').textContent = new Date(viewYear, viewMonth, 1).toLocaleString('default',{month:'long',year:'numeric'});
+  document.getElementById('revAmount').textContent = '$'+m.revenue.toLocaleString();
+  const pct = m.goal>0 ? Math.min(100, m.revenue/m.goal*100) : 0;
+  document.getElementById('revBar').style.width = pct+'%';
+  document.getElementById('revPct').textContent = m.goal>0 ? Math.round(pct)+'% of $'+m.goal.toLocaleString() : 'no goal set';
+  const ri=document.getElementById('revInput'), gi=document.getElementById('goalInput');
+  if(document.activeElement!==ri) ri.value = m.revenue||'';
+  if(document.activeElement!==gi) gi.value = m.goal||'';
+}
+
+/* ============ HEATMAP ============ */
+function heatLevel(xp){ if(xp<=0)return 0; if(xp<=25)return 1; if(xp<=75)return 2; if(xp<=150)return 3; if(xp<=300)return 4; return 5; }
+function navMonth(delta){ viewMonth+=delta; if(viewMonth<0){viewMonth=11;viewYear--;} if(viewMonth>11){viewMonth=0;viewYear++;} renderHeatmap(); renderRevenue(); }
+function goToday(){ const n=new Date(); viewYear=n.getFullYear(); viewMonth=n.getMonth(); renderHeatmap(); renderRevenue(); }
+function renderHeatmap(){
+  document.getElementById('calLabel').textContent = new Date(viewYear,viewMonth,1).toLocaleString('default',{month:'long',year:'numeric'});
+  const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  document.getElementById('dowRow').innerHTML = dow.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const grid = document.getElementById('calGrid');
+  const first = new Date(viewYear,viewMonth,1);
+  const startPad = (first.getDay()+6)%7;
+  const daysIn = new Date(viewYear,viewMonth+1,0).getDate();
+  let html=''; for(let i=0;i<startPad;i++) html+='<div class="cell blank"></div>';
+  const tk = todayKey();
+  for(let d=1; d<=daysIn; d++){
+    const k = mkey(viewYear,viewMonth)+'-'+String(d).padStart(2,'0');
+    const xp = dayXp(k); const sec = state.days[k]?state.days[k].seconds:0;
+    const lv = heatLevel(xp); const dark = lv>=4; const todayCls = k===tk?'today':'';
+    const meta = (xp>0||sec>0) ? `${xp>0?xp+' XP':''}${xp>0&&sec>0?'<br>':''}${sec>0?fmtHM(sec):''}` : '';
+    html+=`<div class="cell ${dark?'dark':''} ${todayCls}" style="background:${HEAT[lv]}" onclick="openDay('${k}')"><span class="d">${d}</span><span class="meta">${meta}</span></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+/* ============ DAY MODAL ============ */
+function openDay(k){
+  const d = state.days[k]; const dt = new Date(k+'T00:00:00');
+  document.getElementById('modalDate').textContent = dt.toLocaleDateString('default',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('mHours').textContent = fmtHM(d?d.seconds:0);
+  document.getElementById('mXp').textContent = dayXp(k);
+  const tasks = d?d.tasks:[];
+  document.getElementById('mDone').textContent = tasks.filter(t=>t.done).length;
+  const box = document.getElementById('modalTasks');
+  box.innerHTML = tasks.length===0 ? '<div class="empty">No quests logged this day.</div>'
+    : tasks.map(t=>`<div class="day-task"><span style="color:${t.done?'var(--green)':'var(--muted)'}">${t.done?'✓':'○'}</span><span style="flex:1;${t.done?'':'opacity:.6'}">${esc(t.text)}</span><span class="pill p-${t.difficulty}">${t.difficulty}</span><span class="xptag" style="color:${t.done?'var(--gold)':'var(--muted)'}">+${t.xp}</span></div>`).join('');
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+/* ============ CLOUD SYNC (GitHub Gist) ============ */
+function openSync(){ document.getElementById('syncOverlay').classList.add('show'); if(sync&&sync.token) document.getElementById('tokenInput').value=sync.token; renderSyncInfo(); }
+function closeSync(){ document.getElementById('syncOverlay').classList.remove('show'); }
+function setSyncUI(label, on){ document.getElementById('syncLabel').textContent=label; document.getElementById('syncDot').classList.toggle('on', !!on); }
+function renderSyncInfo(){
+  const el=document.getElementById('syncInfo');
+  if(sync&&sync.token&&sync.gistId){ el.innerHTML='Status: <strong style="color:var(--green)">connected</strong>. This device syncs automatically.'; }
+  else if(sync&&sync.token){ el.textContent='Status: token saved, finishing setup...'; }
+  else el.textContent='Status: not connected.';
+}
+async function gh(path, opts={}){
+  const r = await fetch('https://api.github.com'+path, {...opts, headers:{'Authorization':'Bearer '+sync.token,'Accept':'application/vnd.github+json',...(opts.headers||{})}});
+  if(!r.ok){ const t=await r.text(); throw new Error('GitHub '+r.status+': '+t.slice(0,120)); }
+  return r.json();
+}
+async function connectSync(){
+  const token = document.getElementById('tokenInput').value.trim();
+  if(!token){ toast('Paste your token first'); return; }
+  sync = {token, gistId:null}; setSyncUI('Connecting...', false);
+  try{
+    await gh('/user'); // validate
+    // find existing data gist
+    const gists = await gh('/gists?per_page=100');
+    const found = gists.find(g => g.description===GIST_DESC && g.files && g.files[GIST_FILE]);
+    if(found){ sync.gistId = found.id; }
+    else{
+      const seed = JSON.stringify({days:{},months:{}});
+      const created = await gh('/gists', {method:'POST', body:JSON.stringify({description:GIST_DESC, public:false, files:{[GIST_FILE]:{content:seed}}})});
+      sync.gistId = created.id;
+    }
+    saveSyncCfg();
+    await pull();          // merge remote into local
+    await push(true);      // push merged result up
+    setSyncUI('Synced', true); renderSyncInfo(); renderAll();
+    toast('☁ Cloud sync connected');
+  }catch(e){ setSyncUI('Sync error', false); document.getElementById('syncInfo').textContent='Error: '+e.message; toast('Sync failed — check token'); sync=null; }
+}
+function disconnectSync(){ sync=null; localStorage.removeItem(SYNCKEY); setSyncUI('Not synced', false); renderSyncInfo(); toast('Disconnected this device (data kept locally)'); }
+async function manualSync(){ if(!sync||!sync.token){ toast('Connect first'); return; } setSyncUI('Syncing...', true); await pull(); await push(true); renderAll(); setSyncUI('Synced', true); toast('Synced'); }
+
+function mergeState(remote){
+  if(!remote) return;
+  remote.days = remote.days||{}; remote.months = remote.months||{};
+  for(const k in remote.days){
+    const r=remote.days[k], l=state.days[k];
+    if(!l || (r.updatedAt||0) >= (l.updatedAt||0)) state.days[k]=r;
+  }
+  for(const mk in remote.months){
+    const r=remote.months[mk], l=state.months[mk];
+    if(!l || (r.updatedAt||0) >= (l.updatedAt||0)) state.months[mk]=r;
+  }
+  localStorage.setItem(KEY, JSON.stringify(state));
+}
+async function pull(){
+  if(!sync||!sync.gistId) return;
+  pulling=true;
+  try{
+    const g = await gh('/gists/'+sync.gistId);
+    const f = g.files&&g.files[GIST_FILE];
+    if(f){
+      let content=f.content;
+      if(f.truncated && f.raw_url){ content = await (await fetch(f.raw_url)).text(); }
+      mergeState(JSON.parse(content));
+    }
+  }catch(e){ console.warn('pull failed', e); }
+  pulling=false;
+}
+function schedulePush(){ if(!sync||!sync.token||!sync.gistId) return; clearTimeout(pushTimer); pushTimer=setTimeout(()=>push(), 1500); }
+async function push(force){
+  if(!sync||!sync.token||!sync.gistId) return;
+  if(state.clock.running && !force) {} // running clock seconds not committed yet; safe to push committed data
+  setSyncUI('Syncing...', true);
+  try{
+    const payload = {days:state.days, months:state.months};
+    await gh('/gists/'+sync.gistId, {method:'PATCH', body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(payload)}}})});
+    setSyncUI('Synced', true);
+  }catch(e){ setSyncUI('Sync error', false); console.warn('push failed', e); }
+}
+
+/* ============ BACKUP ============ */
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='workquest-backup-'+todayKey()+'.json'; a.click(); toast('Backup downloaded');
+}
+function importData(e){
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const s=JSON.parse(r.result); if(s.days){ state=normalize(s); save(); renderAll(); toast('Backup restored'); } else toast('Invalid file'); }catch(err){ toast('Could not read file'); } };
+  r.readAsText(f); e.target.value='';
+}
+function resetAll(){
+  if(!confirm('Erase ALL data on this device? (Synced cloud copy stays unless you also reset there.)')) return;
+  state={days:{},months:{},clock:{running:false,startedAt:null}}; localStorage.setItem(KEY,JSON.stringify(state)); renderAll(); toast('Local data reset');
+}
+
+/* ============ UTIL ============ */
+function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+let toastT=null;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+function celebrate(xp){ toast('⭐ +'+xp+' XP — nice work!'); }
+
+/* ============ RENDER + INIT ============ */
+function renderAll(){ renderClock(); renderTasks(); renderLevel(); renderRevenue(); renderHeatmap(); }
+async function init(){
+  const n=new Date(); viewYear=n.getFullYear(); viewMonth=n.getMonth();
+  document.getElementById('todayLabel').textContent = n.toLocaleDateString('default',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  renderAll();
+  if(sync&&sync.token&&sync.gistId){ setSyncUI('Syncing...', true); await pull(); renderAll(); setSyncUI('Synced', true); }
+  else setSyncUI('Not synced', false);
+  tick = setInterval(()=>{ if(state.clock.running) renderClock(); }, 1000);
+  setInterval(renderClock, 60000);
+  // periodic pull so other devices' changes show up
+  setInterval(async ()=>{ if(sync&&sync.token&&sync.gistId&&!pulling){ await pull(); renderAll(); } }, 45000);
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeSync(); } });
+init();
+</script>
+</body>
+</html>
