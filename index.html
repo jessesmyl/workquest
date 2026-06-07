@@ -57,6 +57,10 @@
 
   .task-add{display:grid;grid-template-columns:1fr auto auto;gap:9px;margin-bottom:16px}
   @media(max-width:520px){.task-add{grid-template-columns:1fr}}
+  .task-day-row{display:flex;align-items:center;gap:9px;margin-bottom:13px;flex-wrap:wrap}
+  .task-day-row input{max-width:180px}
+  .task-day-row .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .planned-tag{font-size:9px;color:var(--accent2);font-weight:700;margin-top:2px}
   .task{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:9px;background:var(--panel2)}
   .task.done{opacity:.55}
   .task.done .ttext{text-decoration:line-through}
@@ -161,9 +165,14 @@
   </div>
 
   <div class="panel">
-    <h2>📋 Today's Work List</h2>
+    <h2 id="taskPanelTitle">📋 Today's Work List</h2>
+    <div class="task-day-row">
+      <span class="lbl">Day</span>
+      <input type="date" id="taskDate" onchange="onTaskDateChange()">
+      <button class="btn-ghost" onclick="taskDayToday()">Today</button>
+    </div>
     <div class="task-add">
-      <input type="text" id="taskInput" placeholder="What needs doing today?" onkeydown="if(event.key==='Enter')addTask()">
+      <input type="text" id="taskInput" placeholder="What needs doing?" onkeydown="if(event.key==='Enter')addTask()">
       <select id="taskDiff">
         <option value="easy">Easy · 10 XP</option>
         <option value="medium" selected>Medium · 25 XP</option>
@@ -220,6 +229,7 @@
       <div class="ms"><div class="v" id="mXp">0</div><div class="l">XP Earned</div></div>
       <div class="ms"><div class="v" id="mDone">0</div><div class="l">Quests Done</div></div>
     </div>
+    <div style="margin:4px 0 16px"><button class="btn-ghost" onclick="planCurrentDay()">✎ Plan / edit this day's quests</button></div>
     <h2 style="margin-bottom:10px">Work Log</h2>
     <div id="modalTasks"></div>
   </div>
@@ -268,6 +278,8 @@ const GIST_FILE = 'workquest-data.json';
 let state = load();
 let sync = loadSync();   // {token, gistId}
 let viewYear, viewMonth;
+let taskDay = todayKey();   // which day the work list is showing / adding to
+let modalKey = null;        // day currently open in the detail modal
 let tick = null, pushTimer = null, pulling = false;
 
 function load(){
@@ -338,26 +350,50 @@ function renderClock(){
 }
 
 /* ============ TASKS ============ */
+function niceDay(k){ return new Date(k+'T00:00:00').toLocaleDateString('default',{weekday:'short',month:'short',day:'numeric'}); }
+function onTaskDateChange(){
+  const v = document.getElementById('taskDate').value;
+  if(v){ taskDay = v; renderTasks(); }
+}
+function taskDayToday(){
+  taskDay = todayKey();
+  document.getElementById('taskDate').value = taskDay;
+  renderTasks();
+}
+function planCurrentDay(){
+  if(!modalKey) return;
+  taskDay = modalKey;
+  document.getElementById('taskDate').value = taskDay;
+  closeModal(); renderTasks();
+  document.getElementById('taskPanelTitle').scrollIntoView({behavior:'smooth', block:'center'});
+  toast('Planning '+ (taskDay===todayKey()?'today':niceDay(taskDay)));
+}
 function addTask(){
   const inp = document.getElementById('taskInput'); const text = inp.value.trim();
   if(!text) return;
-  const diff = document.getElementById('taskDiff').value; const k=todayKey();
+  const diff = document.getElementById('taskDiff').value; const k = taskDay;
   day(k).tasks.push({id:Date.now()+''+Math.floor(Math.random()*999), text, difficulty:diff, xp:XP[diff], done:false});
   touchDay(k); inp.value='';
   save(); renderTasks(); renderHeatmap();
 }
 function toggleTask(id){
-  const k=todayKey(); const t = day(k).tasks.find(x=>x.id===id); if(!t) return;
+  const k = taskDay; const t = day(k).tasks.find(x=>x.id===id); if(!t) return;
   t.done = !t.done; if(t.done){ t.completedAt = Date.now(); celebrate(t.xp); }
   touchDay(k); save(); renderTasks(); renderLevel(); renderHeatmap();
 }
 function delTask(id){
-  const k=todayKey(); const d=day(k); d.tasks = d.tasks.filter(x=>x.id!==id); touchDay(k);
+  const k = taskDay; const d=day(k); d.tasks = d.tasks.filter(x=>x.id!==id); touchDay(k);
   save(); renderTasks(); renderLevel(); renderHeatmap();
 }
 function renderTasks(){
-  const d = day(todayKey()); const list = document.getElementById('taskList');
-  if(d.tasks.length===0){ list.innerHTML='<div class="empty">No quests yet. Add your first task above.</div>'; document.getElementById('taskSummary').textContent=''; return; }
+  const k = taskDay, isToday = k===todayKey();
+  const d = day(k); const list = document.getElementById('taskList');
+  document.getElementById('taskPanelTitle').textContent = isToday ? "📋 Today's Work List" : '📋 Plan: '+niceDay(k);
+  if(d.tasks.length===0){
+    list.innerHTML = '<div class="empty">'+(isToday?'No quests yet. Add your first task above.':'Nothing planned for this day yet. Add a quest above.')+'</div>';
+    document.getElementById('taskSummary').textContent='';
+    return;
+  }
   list.innerHTML = d.tasks.map(t=>`
     <div class="task ${t.done?'done':''}">
       <button class="check ${t.done?'on':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</button>
@@ -367,7 +403,9 @@ function renderTasks(){
       <button class="btn-danger" style="padding:4px 8px" onclick="delTask('${t.id}')">✕</button>
     </div>`).join('');
   const done = d.tasks.filter(t=>t.done).length;
-  document.getElementById('taskSummary').textContent = `${done}/${d.tasks.length} quests complete · ${dayXp(todayKey())} XP earned today`;
+  document.getElementById('taskSummary').textContent = isToday
+    ? `${done}/${d.tasks.length} quests complete · ${dayXp(k)} XP earned today`
+    : `${d.tasks.length} quest${d.tasks.length!==1?'s':''} planned · ${done} done`;
 }
 
 /* ============ LEVEL ============ */
@@ -426,15 +464,18 @@ function renderHeatmap(){
   for(let d=1; d<=daysIn; d++){
     const k = mkey(viewYear,viewMonth)+'-'+String(d).padStart(2,'0');
     const xp = dayXp(k); const sec = state.days[k]?state.days[k].seconds:0;
+    const planned = state.days[k]?state.days[k].tasks.filter(t=>!t.done).length:0;
     const lv = heatLevel(xp); const dark = lv>=4; const todayCls = k===tk?'today':'';
     const meta = (xp>0||sec>0) ? `${xp>0?xp+' XP':''}${xp>0&&sec>0?'<br>':''}${sec>0?fmtHM(sec):''}` : '';
-    html+=`<div class="cell ${dark?'dark':''} ${todayCls}" style="background:${HEAT[lv]}" onclick="openDay('${k}')"><span class="d">${d}</span><span class="meta">${meta}</span></div>`;
+    const plannedTag = planned>0 ? `<span class="planned-tag">📋 ${planned}</span>` : '';
+    html+=`<div class="cell ${dark?'dark':''} ${todayCls}" style="background:${HEAT[lv]}" onclick="openDay('${k}')"><span class="d">${d}</span><span class="meta">${meta}</span>${plannedTag}</div>`;
   }
   grid.innerHTML = html;
 }
 
 /* ============ DAY MODAL ============ */
 function openDay(k){
+  modalKey = k;
   const d = state.days[k]; const dt = new Date(k+'T00:00:00');
   document.getElementById('modalDate').textContent = dt.toLocaleDateString('default',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   document.getElementById('mHours').textContent = fmtHM(d?d.seconds:0);
@@ -555,6 +596,8 @@ function renderAll(){ renderClock(); renderTasks(); renderLevel(); renderRevenue
 async function init(){
   const n=new Date(); viewYear=n.getFullYear(); viewMonth=n.getMonth();
   document.getElementById('todayLabel').textContent = n.toLocaleDateString('default',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  taskDay = todayKey();
+  document.getElementById('taskDate').value = taskDay;
   renderAll();
   if(sync&&sync.token&&sync.gistId){ setSyncUI('Syncing...', true); await pull(); renderAll(); setSyncUI('Synced', true); }
   else setSyncUI('Not synced', false);
